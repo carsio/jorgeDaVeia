@@ -9,22 +9,84 @@
         <tr> <td id="box-3" data-position="3"  onclick="handleClick(event, this)" class="label b-bottom b-top b-right">  </td> <td id="box-4" data-position="4"  onclick="handleClick(event, this)" class="label">           </td> <td id="box-5" data-position="5"  onclick="handleClick(event, this)" class="label b-left">          </td></tr>
         <tr> <td id="box-6" data-position="6"  onclick="handleClick(event, this)" class="label  b-top b-right ">         </td> <td id="box-7" data-position="7"  onclick="handleClick(event, this)" class="label b-top">     </td> <td id="box-8" data-position="8"  onclick="handleClick(event, this)" class="label b-left b-top">    </td></tr>
       </table>
+      <button  onclick="handleResetGame()">Reset</button>
   </body>
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-    
-    function handleClick(e, component){
-        if (!e) var e = window.event;                // Get the window event
-         e.cancelBubble = true;                       // IE Stop propagation
-        if (e.stopPropagation) e.stopPropagation();  // Other Broswers
-        const position = component.getAttribute('data-position')
+    function uuidv4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
-        console.log(position)
+	var socket = io();
+	socket.on('connect', ()=>{
+		socket.emit('start-game', getUserId() );
+	})
+  socket.on('start-game', (markers)=>{
+    populateMarkers(markers)
+
+	})
+
+	socket.on('game-over', ({ playerId })=>{
+    alert(`Jogador ${playerId} venceu`)
+    handleResetGame()
+
+	})
+
+  socket.on('draw-game', ({ playerId })=>{
+    alert(`O Jogo empatou`)
+    handleResetGame()
+
+	})
+
+  socket.on('update-game', (markers)=>{
+    populateMarkers(markers)
+
+	})
+
+
+  socket.on('error', (message) => window.alert(message));
+
+  function populateMarkers(positions){
+    positions.forEach((p, indexId)=>{
+      setValueIntoBox(indexId, p)
+    })
+  }
+
+  function handleResetGame(){
+    const playerId =  getUserId()
+    socket.emit('reset-game', {playerId});
+  }
+
+  function handleClick(e, component){
+    if (!e) var e = window.event;          
+    e.cancelBubble = true;                      
+    if (e.stopPropagation) e.stopPropagation();
+    const position = component.getAttribute('data-position')
+		const playerId =  getUserId()
+    console.log(playerId, position)
+		socket.emit('update-game', { playerId, position });
     }
 
     function setValueIntoBox(boxId, value="x"){
-        const element = document.getElementById(`box-${boxId}`)
-        element.innerHTML= value;
+    	const element = document.getElementById(`box-${boxId}`)
+    	element.innerHTML= value;
     }
+
+    function getUserId(){
+		const userKey ="user";
+			let userHash =  localStorage.getItem(userKey);
+			if(userHash){
+				return userHash;
+			}
+			userHash = uuidv4();
+			localStorage.setItem(userKey, userHash);
+			return userHash;
+    };
+
+
 
   </script>
   <style>
@@ -33,8 +95,10 @@
           justify-content: center;
           align-items: center;
           height: 100vh;
+          flex-direction:column;
       }
       #table-game{
+            margin:20px;
             height: 300px;
             width: 300px;
              text-align: center;
@@ -43,6 +107,9 @@
       .label{
           height:50px;
           width:50px;
+		      cursor: pointer;
+          font-size: 50px;
+          font-family: sans-serif;
 
       }
       .bordered{
